@@ -1,0 +1,179 @@
+//@version=4
+//Stochastic Momentum Index
+//Original code by OverMind
+
+// Variables
+study("v0.30 KDJ + Stoch Momentum Index", shorttitle = "KDJ + SMI v0.30", overlay=true)
+src = close
+level_0 = 0
+level_40 = 40
+level_30 =30
+level_m40 = -40
+level_m30 = -30
+
+
+KDJtf= input(title='KDJ TF:', type=input.resolution, defval='1D')
+ilong = input(9, title="KDJperiod")
+isigK = input(3, title="KDJsignal K")
+isigD = input(3, title="KDJsignal D")
+
+h = highest(high, ilong)
+l = lowest(low,ilong)
+RSV = 100*((src-l)/(h-l))
+pK = sma(RSV, isigK)
+pD = sma(pK, isigD)
+pJ = 3 * pK-2 * pD
+
+buyD = security(syminfo.ticker, KDJtf, pJ, barmerge.gaps_off, barmerge.lookahead_on)
+
+bgcolor(buyD < 20 ? color.green : na, transp=90)
+
+bgcolor(buyD < 0 ? color.lime : na, transp=50)
+
+//plotshape(buyD < 20, title = 'KDJ',  text = 'Buy', textcolor = color.aqua,  style = shape.arrowup, location = location.belowbar, color = color.aqua, transp = 20, offset = 0, editable = true, size = size.normal, show_last = 1000, display = display.all)
+//plotshape(buyD < 0,  title = 'KDJ',  text = 'buy', textcolor = color.lime,   style = shape.arrowup, location = location.belowbar, color = color.lime,  transp = 80, offset = -1, editable = true, size = size.normal, show_last = 1000, display = display.all)
+
+
+//bgcolor(pJ>70? red : white, transp=70)
+//bgcolor(pJ<20? green : white, transp=70)
+//bgcolor(pJ<0? lime : white, transp=70)
+//////////////// Inputs addition signals
+
+diftime1 = input(false, "Addition signals (AS)")
+tf1= input(title='Addition signals:', type=input.resolution, defval='240')
+a1 = input(10, "Percent K Length 4h")
+b1 = input(8, "Percent D Length 4h")
+
+ignoresig1 = input(false, "Ignore filters (AS)")
+dopfl1 = input(-20, title='Below')
+dopfs1 = input(20, title='Above')
+
+//////////////// Inputs main signals
+
+diftime2 = input(true, "Main signals (MS)")
+tf2 = input(title='Main signals:', type=input.resolution, defval='480')
+a2 = input(10, "Percent K Length 8h")
+b2 = input(8, "Percent D Length 8h")
+dtf = input(true, "Trend filter")
+
+ignoresig2 = input(true, "Ignore filters (MS)")
+dopfl2 = input(-20, title='Below')
+dopfs2 = input(20, title='Above')
+
+//////////////// Inputs definition of trend
+diftime3 = input(true, "DEFINITION OF TREND")
+tf3 = input(title='Global trend:', type=input.resolution, defval='3D')
+a3 = input(10, "Percent K Length 3D")
+b3 = input(40, "Percent D Length 3D")
+
+/////////////////////////////////////////////////////////
+
+// DEFINITION OF TREND
+
+
+
+ll3 = lowest (low, a3)
+hh3 = highest (high, a3)
+diff3 = hh3 - ll3
+rdiff3 = src - (hh3+ll3)/2
+avgrel3 = ema(ema(rdiff3,b3),b3)
+avgdiff3 = ema(ema(diff3,b3),b3)
+// SMI calculations
+SMI3 = avgdiff3 != 0 ? (avgrel3/(avgdiff3/2)*100) : 0
+SMIsignal3 = ema(SMI3,b3)
+dtu = (crossover(SMIsignal3, SMI3)) and SMI3  //main signal long
+dtd = (crossunder(SMIsignal3, SMI3)) and SMI3  //main signal short
+
+
+mss2f = (SMIsignal3 < SMI3) ? true : na
+msl2f = (SMIsignal3 > SMI3) ? true : na
+
+SMIsignal31 = security(syminfo.ticker, tf3, SMIsignal3)
+SMI31 = security(syminfo.ticker, tf3, SMI3)
+
+bgcolor(SMIsignal31 > SMI31 ? color.red : color.green, transp=90)
+
+
+///////SMI for barcolor
+
+cl_tf_on = input(true, "Candle color TF")
+cl_tf = input(title='Candle color TF:', type=input.resolution, defval='480')
+a = input(10, "Percent K Length Bar color")
+b = input(8, "Percent D Length Bar color")
+SellZ = input(30,'Sell zone candle color')
+BuyZ = input(-30,'Buy zone candle color')
+
+
+ll_cl = lowest (low, a)
+hh_cl = highest (high, a)
+diff_cl = hh_cl - ll_cl
+rdiff_cl = src - (hh_cl+ll_cl)/2
+avgrel_cl = ema(ema(rdiff_cl,b),b)
+avgdiff_cl = ema(ema(diff_cl,b),b)
+// SMI calculations
+SMI_cl = avgdiff_cl != 0 ? (avgrel_cl/(avgdiff_cl/2)*100) : 0
+SMI_cltf = cl_tf_on ? security(syminfo.ticker, cl_tf, SMI_cl, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+ //Bar Color
+//dopfl1 = input(-20, title='Below')
+//dopfs1 = input(20, title='Above')
+SellZone()=> SMI_cltf > SellZ
+BuyZone()=> SMI_cltf < BuyZ
+barcolor(BuyZone() ? color.yellow : SellZone() ? color.white : na)
+
+
+/////////////////////////////////////////////////////////
+// Additional signals
+
+
+ll1 = lowest (low, a1)
+hh1 = highest (high, a1)
+diff1 = hh1 - ll1
+rdiff1 = src - (hh1+ll1)/2
+avgrel1 = ema(ema(rdiff1,b1),b1)
+avgdiff1 = ema(ema(diff1,b1),b1)
+// SMI calculations
+SMI1 = avgdiff1 != 0 ? (avgrel1/(avgdiff1/2)*100) : 0
+SMIsignal1 = ema(SMI1,b1)
+dsl = ignoresig1 ? crossover(SMI1, SMIsignal1) : crossover(SMI1, SMIsignal1) and SMI1 < dopfl1  //dopolnitelnii signal long
+dss = ignoresig1 ? crossunder(SMI1, SMIsignal1) : crossunder(SMI1, SMIsignal1) and SMI1 > dopfs1 //dopolnitelnii signal short
+
+
+
+//tf1l = security(syminfo.ticker, tf1, dsl)
+//tf1s = security(syminfo.ticker, tf1, dss)
+dsl1 = diftime1 ? security(syminfo.ticker, tf1, dsl, barmerge.gaps_on, barmerge.lookahead_on) : na
+dss1 = diftime1 ? security(syminfo.ticker, tf1, dss, barmerge.gaps_on, barmerge.lookahead_on) : na
+plotshape(dsl1, title = 'Add.Long',  text = 'long', textcolor = color.green,  style = shape.triangleup, location = location.belowbar, color = color.green, transp = 70, offset = 0,editable = true, size = size.normal, show_last = 1000, display = display.all)
+plotshape(dss1, title = 'Add.Short',  text = 'short', textcolor = color.red,  style = shape.triangledown, location = location.abovebar, color = color.red, transp = 70, offset = 0,editable = true, size = size.normal, show_last = 1000, display = display.all)
+/////////////////////////////////////////////////////////
+// Main signals
+
+ll2 = lowest (low, a2)
+hh2 = highest (high, a2)
+diff2 = hh2 - ll2
+rdiff2 = src - (hh2+ll2)/2
+avgrel2 = ema(ema(rdiff2,b2),b2)
+avgdiff2 = ema(ema(diff2,b2),b2)
+SMI2 = avgdiff2 != 0 ? (avgrel2/(avgdiff2/2)*100) : 0
+SMIsignal2 = ema(SMI2,b2)
+mss = ignoresig2 ? crossover(SMI2, SMIsignal2) : crossover(SMI2, SMIsignal2) and SMI2 < dopfl2  //dopolnitelnii signal long
+msl = ignoresig2 ? crossunder(SMI2, SMIsignal2) : crossunder(SMI2, SMIsignal2) and SMI2 > dopfs2 //dopolnitelnii signal short
+tf2l = security(syminfo.ticker, tf2, msl)
+tf2s = security(syminfo.ticker, tf2, mss)
+msl2 = diftime2 ? security(syminfo.ticker, tf2, msl, barmerge.gaps_on, barmerge.lookahead_off) : na
+mss2 = diftime2 ? security(syminfo.ticker, tf2, mss, barmerge.gaps_on, barmerge.lookahead_off) : na
+plotshape(dtf ? mss2 : na, title = 'char',  text = 'Long', textcolor = color.green,  style = shape.triangleup, location = location.belowbar , color = color.green, transp = 0, offset = 0,editable = true, size = size.normal, show_last = 1000, display = display.all)
+plotshape(dtf ? msl2 : na, title = 'char',  text = 'Short', textcolor = color.red,  style = shape.triangledown, location = location.abovebar, color = color.red, transp = 0, offset = 0,editable = true, size = size.normal, show_last = 1000, display = display.all)
+
+
+
+
+
+alertcondition(mss2, 'LONG', 'LONG')
+alertcondition(msl2, 'SHORT', 'SHORT')
+
+alertcondition(dsl1, 'long', 'long')
+alertcondition(dss1, 'short', 'short')
+
+//END
